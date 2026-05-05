@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { PaginatedResult } from '../common/interfaces/paginated-result.interface';
 import { CreateProjectDto } from './dto/create-project.dto';
 import { UpdateProjectDto } from './dto/update-project.dto';
 import { Project } from './entities/project.entity';
@@ -17,8 +18,18 @@ export class ProjectsService {
     return this.projectsRepository.save(project);
   }
 
-  async findAll(): Promise<Project[]> {
-    return this.projectsRepository.find();
+  async findAll(page = 1, limit = 10): Promise<PaginatedResult<Project>> {
+    const [results, total] = await this.projectsRepository.findAndCount({
+      skip: (page - 1) * limit,
+      take: limit,
+      order: { createdAt: 'DESC' },
+    });
+    return {
+      results,
+      total,
+      page,
+      limit,
+    };
   }
 
   async findOne(id: string): Promise<Project> {

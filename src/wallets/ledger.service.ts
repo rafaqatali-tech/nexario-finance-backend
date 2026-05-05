@@ -1,4 +1,9 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import {
@@ -10,6 +15,8 @@ import { Wallet } from './entities/wallet.entity';
 
 @Injectable()
 export class LedgerService {
+  private readonly logger = new Logger(LedgerService.name);
+
   constructor(
     @InjectRepository(LedgerEntry)
     private readonly ledgerEntriesRepository: Repository<LedgerEntry>,
@@ -71,6 +78,10 @@ export class LedgerService {
       referenceId,
     });
 
-    return this.ledgerEntriesRepository.save(entry);
+    const saved = await this.ledgerEntriesRepository.save(entry);
+    this.logger.log(
+      `Ledger ${type} wallet=${walletId} amount=${amount} ref=${referenceType}:${referenceId} entryId=${saved.id}`,
+    );
+    return saved;
   }
 }

@@ -2,8 +2,9 @@ import { ConflictException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcrypt';
 import { QueryFailedError, Repository } from 'typeorm';
+import { PaginatedResult } from '../common/interfaces/paginated-result.interface';
 import { CreateUserDto } from './dto/create-user.dto';
-import { User } from './entities/user.entity';
+import { User, UserRole } from './entities/user.entity';
 
 export type UserPublic = Omit<User, 'password'>;
 
@@ -21,7 +22,7 @@ export class UsersService {
       lastName: dto.lastName,
       email: dto.email.toLowerCase().trim(),
       password: passwordHash,
-      role: dto.role,
+      role: dto.role ?? UserRole.PARTNER,
     });
     try {
       const saved = await this.usersRepository.save(user);
@@ -48,8 +49,8 @@ export class UsersService {
     }
   }
 
-  async findAll(): Promise<UserPublic[]> {
-    return this.usersRepository.find({
+  async findAll(page = 1, limit = 10): Promise<PaginatedResult<UserPublic>> {
+    const [results, total] = await this.usersRepository.findAndCount({
       select: {
         id: true,
         firstName: true,
@@ -59,6 +60,15 @@ export class UsersService {
         createdAt: true,
         updatedAt: true,
       },
+      skip: (page - 1) * limit,
+      take: limit,
     });
+
+    return {
+      results,
+      total,
+      page,
+      limit,
+    };
   }
 }

@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { PaginatedResult } from '../common/interfaces/paginated-result.interface';
 import { User } from '../users/entities/user.entity';
 import { CreateWalletDto } from './dto/create-wallet.dto';
 import { UpdateWalletDto } from './dto/update-wallet.dto';
@@ -27,11 +28,24 @@ export class WalletsService {
       type: dto.type,
       owner,
     });
-    return this.walletsRepository.save(wallet);
+    const saved = await this.walletsRepository.save(wallet);
+    return this.findOne(saved.id);
   }
 
-  async findAll(): Promise<Wallet[]> {
-    return this.walletsRepository.find({ relations: ['owner'] });
+  async findAll(page = 1, limit = 10): Promise<PaginatedResult<Wallet>> {
+    const [results, total] = await this.walletsRepository.findAndCount({
+      relations: ['owner'],
+      skip: (page - 1) * limit,
+      take: limit,
+      order: { createdAt: 'DESC' },
+    });
+
+    return {
+      results,
+      total,
+      page,
+      limit,
+    };
   }
 
   async findOne(id: string): Promise<Wallet> {

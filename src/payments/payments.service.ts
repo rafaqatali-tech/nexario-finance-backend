@@ -1,6 +1,7 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { PaginatedResult } from '../common/interfaces/paginated-result.interface';
 import { Project } from '../projects/entities/project.entity';
 import { LedgerEntryReferenceType } from '../wallets/entities/ledger-entry.entity';
 import { Wallet } from '../wallets/entities/wallet.entity';
@@ -10,6 +11,8 @@ import { Payment } from './entities/payment.entity';
 
 @Injectable()
 export class PaymentsService {
+  private readonly logger = new Logger(PaymentsService.name);
+
   constructor(
     @InjectRepository(Payment)
     private readonly paymentsRepository: Repository<Payment>,
@@ -52,17 +55,38 @@ export class PaymentsService {
         saved.id,
       );
     } catch (err) {
+      this.logger.warn(
+        `Payment ${saved.id} rolled back: ledger credit failed — ${String(err)}`,
+      );
       await this.paymentsRepository.remove(saved);
       throw err;
     }
 
-    return saved;
+    this.logger.log(
+      `Payment created id=${saved.id} amount=${dto.amount} wallet=${dto.receivedByWalletId} project=${dto.projectId}`,
+    );
+    const created = await this.paymentsRepository.findOne({
+      where: { id: saved.id },
+      relations: ['project', 'receivedByWallet'],
+    });
+    if (!created) {
+      throw new NotFoundException('Payment not found after creation');
+    }
+    return created;
   }
 
-  async findAll(): Promise<Payment[]> {
-    return this.paymentsRepository.find({
+  async findAll(page = 1, limit = 10): Promise<PaginatedResult<Payment>> {
+    const [results, total] = await this.paymentsRepository.findAndCount({
       relations: ['project', 'receivedByWallet'],
+      skip: (page - 1) * limit,
+      take: limit,
       order: { date: 'DESC', createdAt: 'DESC' },
     });
+    return {
+      results,
+      total,
+      page,
+      limit,
+    };
   }
 }

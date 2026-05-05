@@ -1,14 +1,17 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { PaginatedResult } from '../common/interfaces/paginated-result.interface';
 import { LedgerEntryReferenceType } from '../wallets/entities/ledger-entry.entity';
 import { Wallet } from '../wallets/entities/wallet.entity';
 import { LedgerService } from '../wallets/ledger.service';
 import { CreateExpenseDto } from './dto/create-expense.dto';
 import { Expense } from './entities/expense.entity';
-// Logger 
+
 @Injectable()
 export class ExpensesService {
+  private readonly logger = new Logger(ExpensesService.name);
+
   constructor(
     @InjectRepository(Expense)
     private readonly expensesRepository: Repository<Expense>,
@@ -42,17 +45,38 @@ export class ExpensesService {
         saved.id,
       );
     } catch (err) {
+      this.logger.warn(
+        `Expense ${saved.id} rolled back: ledger debit failed — ${String(err)}`,
+      );
       await this.expensesRepository.remove(saved);
       throw err;
     }
 
-    return saved;
+    this.logger.log(
+      `Expense created id=${saved.id} amount=${dto.amount} category=${dto.category} wallet=${dto.paidByWalletId}`,
+    );
+    const created = await this.expensesRepository.findOne({
+      where: { id: saved.id },
+      relations: ['paidByWallet'],
+    });
+    if (!created) {
+      throw new NotFoundException('Expense not found after creation');
+    }
+    return created;
   }
 
-  async findAll(): Promise<Expense[]> {
-    return this.expensesRepository.find({
+  async findAll(page = 1, limit = 10): Promise<PaginatedResult<Expense>> {
+    const [results, total] = await this.expensesRepository.findAndCount({
       relations: ['paidByWallet'],
+      skip: (page - 1) * limit,
+      take: limit,
       order: { date: 'DESC', createdAt: 'DESC' },
     });
+    return {
+      results,
+      total,
+      page,
+      limit,
+    };
   }
 }
