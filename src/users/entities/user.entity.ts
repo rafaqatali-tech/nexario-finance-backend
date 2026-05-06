@@ -28,6 +28,9 @@ export class User {
   @Column({ type: 'varchar' })
   password!: string;
 
+  @Column({ type: 'varchar', name: 'refresh_token', nullable: true })
+  refreshToken!: string | null;
+
   @Column({
     type: 'enum',
     enum: UserRole,

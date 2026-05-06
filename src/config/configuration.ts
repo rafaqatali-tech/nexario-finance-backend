@@ -9,5 +9,14 @@ export default function configuration() {
       password: process.env.DB_PASSWORD ?? 'postgres',
       database: process.env.DB_DATABASE ?? 'nexario',
     },
+    jwt: {
+      accessTokenSecret: process.env.JWT_ACCESS_TOKEN_SECRET ?? 'secret',
+      refreshTokenSecret: process.env.JWT_REFRESH_TOKEN_SECRET ?? 'refresh-secret',
+      accessTokenTtl: Number.parseInt(process.env.JWT_ACCESS_TOKEN_TTL ?? '900', 10),
+      refreshTokenTtl: Number.parseInt(
+        process.env.JWT_REFRESH_TOKEN_TTL ?? '604800',
+        10,
+      ),
+    },
   };
 }
