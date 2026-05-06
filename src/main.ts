@@ -9,6 +9,10 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
   const logger = new Logger('Bootstrap');
   app.useLogger(logger);
+  app.enableCors({
+    origin: true,
+    credentials: true,
+  });
 
   const config = new DocumentBuilder()
     .setTitle('Finance Tracker API') 
