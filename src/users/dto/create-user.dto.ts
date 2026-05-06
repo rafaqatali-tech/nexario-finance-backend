@@ -5,7 +5,7 @@ import { UserRole } from '../entities/user.entity';
 export class CreateUserDto {
   @ApiProperty({
     description: 'First name of the user',
-    example: 'Zeeshan',
+    example: 'Rafaqat',
   })
   @IsString()
   @MinLength(1)
