@@ -6,7 +6,7 @@ import { PaginatedResult } from '../common/interfaces/paginated-result.interface
 import { CreateUserDto } from './dto/create-user.dto';
 import { User, UserRole } from './entities/user.entity';
 
-export type UserPublic = Omit<User, 'password'>;
+export type UserPublic = Omit<User, 'password' | 'refreshToken'>;
 
 @Injectable()
 export class UsersService {
@@ -70,5 +70,42 @@ export class UsersService {
       page,
       limit,
     };
+  }
+
+  findByEmail(email: string): Promise<User | null> {
+    return this.usersRepository.findOne({
+      where: { email: email.toLowerCase().trim() },
+    });
+  }
+
+  findById(id: string): Promise<User | null> {
+    return this.usersRepository.findOne({ where: { id } });
+  }
+
+  async storeRefreshToken(userId: string, refreshToken: string): Promise<void> {
+    const hashedRefreshToken = await bcrypt.hash(refreshToken, 10);
+    await this.usersRepository.update(userId, {
+      refreshToken: hashedRefreshToken,
+    });
+  }
+
+  async clearRefreshToken(userId: string): Promise<void> {
+    await this.usersRepository.update(userId, { refreshToken: null });
+  }
+
+  async verifyRefreshToken(userId: string, refreshToken: string): Promise<boolean> {
+    const user = await this.usersRepository.findOne({
+      where: { id: userId },
+      select: {
+        id: true,
+        refreshToken: true,
+      },
+    });
+
+    if (!user?.refreshToken) {
+      return false;
+    }
+
+    return bcrypt.compare(refreshToken, user.refreshToken);
   }
 }
