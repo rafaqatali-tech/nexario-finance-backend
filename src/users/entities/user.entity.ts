@@ -29,7 +29,7 @@ export class User {
   password!: string;
 
   @Column({ type: 'varchar', name: 'refresh_token', nullable: true })
-  refreshToken!: string | null;
+  refreshTokenHash!: string | null;
 
   @Column({
     type: 'enum',

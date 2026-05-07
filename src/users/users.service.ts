@@ -6,7 +6,7 @@ import { PaginatedResult } from '../common/interfaces/paginated-result.interface
 import { CreateUserDto } from './dto/create-user.dto';
 import { User, UserRole } from './entities/user.entity';
 
-export type UserPublic = Omit<User, 'password' | 'refreshToken'>;
+export type UserPublic = Omit<User, 'password' | 'refreshTokenHash'>;
 
 @Injectable()
 export class UsersService {
@@ -85,12 +85,12 @@ export class UsersService {
   async storeRefreshToken(userId: string, refreshToken: string): Promise<void> {
     const hashedRefreshToken = await bcrypt.hash(refreshToken, 10);
     await this.usersRepository.update(userId, {
-      refreshToken: hashedRefreshToken,
+      refreshTokenHash: hashedRefreshToken,
     });
   }
 
   async clearRefreshToken(userId: string): Promise<void> {
-    await this.usersRepository.update(userId, { refreshToken: null });
+    await this.usersRepository.update(userId, { refreshTokenHash: null });
   }
 
   async verifyRefreshToken(userId: string, refreshToken: string): Promise<boolean> {
@@ -98,14 +98,14 @@ export class UsersService {
       where: { id: userId },
       select: {
         id: true,
-        refreshToken: true,
+        refreshTokenHash: true,
       },
     });
 
-    if (!user?.refreshToken) {
+    if (!user?.refreshTokenHash) {
       return false;
     }
 
-    return bcrypt.compare(refreshToken, user.refreshToken);
+    return bcrypt.compare(refreshToken, user.refreshTokenHash);
   }
 }
