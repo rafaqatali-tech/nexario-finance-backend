@@ -82,6 +82,10 @@ export class UsersService {
     return this.usersRepository.findOne({ where: { id } });
   }
 
+  verifyPassword(user: User, plainPassword: string): Promise<boolean> {
+    return bcrypt.compare(plainPassword, user.password);
+  }
+
   async storeRefreshToken(userId: string, refreshToken: string): Promise<void> {
     const hashedRefreshToken = await bcrypt.hash(refreshToken, 10);
     await this.usersRepository.update(userId, {

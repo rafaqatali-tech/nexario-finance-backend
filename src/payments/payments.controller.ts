@@ -1,8 +1,17 @@
-import { Body, Controller, Get, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, Post, Query, UseGuards } from '@nestjs/common';
 import { Expose, plainToInstance, Type } from 'class-transformer';
-import { ApiOperation, ApiProperty, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiProperty,
+  ApiTags,
+} from '@nestjs/swagger';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
 import { ApiPaginatedResponse } from '../common/decorators/api-paginated-response.decorator';
 import { PaginatedResult } from '../common/interfaces/paginated-result.interface';
+import { UserRole } from '../users/entities/user.entity';
 import { CreatePaymentDto } from './dto/create-payment.dto';
 import { Payment } from './entities/payment.entity';
 import { PaymentsService } from './payments.service';
@@ -68,6 +77,9 @@ class PaymentResponseItem {
 }
 
 @ApiTags('Payments')
+@ApiBearerAuth()
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles(UserRole.ADMIN, UserRole.PARTNER)
 @Controller('payments')
 export class PaymentsController {
   constructor(private readonly paymentsService: PaymentsService) {}

@@ -1,61 +1,85 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import * as bcrypt from 'bcrypt';
-import { Repository } from 'typeorm';
-import { InjectRepository } from '@nestjs/typeorm';
-import { User } from '../users/entities/user.entity';
 import type { SignOptions } from 'jsonwebtoken';
+import { CreateUserDto } from '../users/dto/create-user.dto';
+import { User } from '../users/entities/user.entity';
+import { UsersService } from '../users/users.service';
 
 export interface AuthTokens {
   accessToken: string;
   refreshToken: string;
 }
 
+export interface AuthRegisterResponse extends AuthTokens {
+  user: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    role: string;
+  };
+}
+
 @Injectable()
 export class AuthService {
   constructor(
     private readonly jwtService: JwtService,
-    @InjectRepository(User)
-    private readonly usersRepository: Repository<User>,
+    private readonly usersService: UsersService,
   ) {}
 
+  async register(dto: CreateUserDto): Promise<AuthRegisterResponse> {
+    const user = await this.usersService.create(dto);
+    const tokens = await this.login(dto.email, dto.password);
+    return {
+      ...tokens,
+      user: {
+        id: user.id,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email,
+        role: user.role,
+      },
+    };
+  }
+
   async login(email: string, password: string): Promise<AuthTokens> {
-    const user = await this.usersRepository.findOne({
-      where: { email: email.toLowerCase().trim() },
-    });
+    const user = await this.usersService.findByEmail(email);
     if (!user) {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    const ok = await bcrypt.compare(password, user.password);
+    const ok = await this.usersService.verifyPassword(user, password);
     if (!ok) {
       throw new UnauthorizedException('Invalid credentials');
     }
 
     const tokens = await this.issueTokens(user);
-    await this.setRefreshToken(user.id, tokens.refreshToken);
+    await this.usersService.storeRefreshToken(user.id, tokens.refreshToken);
     return tokens;
   }
 
   async refresh(refreshToken: string): Promise<AuthTokens> {
     const payload = await this.verifyRefreshToken(refreshToken);
-    const user = await this.usersRepository.findOne({ where: { id: payload.sub } });
-    if (!user || !user.refreshTokenHash) {
+    const user = await this.usersService.findById(payload.sub);
+    if (!user) {
       throw new UnauthorizedException('Invalid refresh token');
     }
 
-    const matches = await bcrypt.compare(refreshToken, user.refreshTokenHash);
+    const matches = await this.usersService.verifyRefreshToken(
+      user.id,
+      refreshToken,
+    );
     if (!matches) {
       throw new UnauthorizedException('Invalid refresh token');
     }
 
     const tokens = await this.issueTokens(user);
-    await this.setRefreshToken(user.id, tokens.refreshToken);
+    await this.usersService.storeRefreshToken(user.id, tokens.refreshToken);
     return tokens;
   }
 
   async logout(userId: string): Promise<void> {
-    await this.usersRepository.update({ id: userId }, { refreshTokenHash: null });
+    await this.usersService.clearRefreshToken(userId);
   }
 
   private async issueTokens(user: User): Promise<AuthTokens> {
@@ -94,10 +118,5 @@ export class AuthService {
     } catch {
       throw new UnauthorizedException('Invalid refresh token');
     }
-  }
-
-  private async setRefreshToken(userId: string, refreshToken: string): Promise<void> {
-    const hash = await bcrypt.hash(refreshToken, 10);
-    await this.usersRepository.update({ id: userId }, { refreshTokenHash: hash });
   }
 }

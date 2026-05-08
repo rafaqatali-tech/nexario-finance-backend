@@ -1,8 +1,17 @@
-import { Body, Controller, Get, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, Post, Query, UseGuards } from '@nestjs/common';
 import { Expose, plainToInstance, Type } from 'class-transformer';
-import { ApiOperation, ApiProperty, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiProperty,
+  ApiTags,
+} from '@nestjs/swagger';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
 import { ApiPaginatedResponse } from '../common/decorators/api-paginated-response.decorator';
 import { PaginatedResult } from '../common/interfaces/paginated-result.interface';
+import { UserRole } from '../users/entities/user.entity';
 import { CreateExpenseDto } from './dto/create-expense.dto';
 import { Expense } from './entities/expense.entity';
 import { ExpensesService } from './expenses.service';
@@ -57,6 +66,9 @@ class ExpenseResponseItem {
 }
 
 @ApiTags('Expenses')
+@ApiBearerAuth()
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles(UserRole.ADMIN, UserRole.PARTNER)
 @Controller('expenses')
 export class ExpensesController {
   constructor(private readonly expensesService: ExpensesService) {}

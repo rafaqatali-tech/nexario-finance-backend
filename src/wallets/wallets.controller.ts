@@ -1,8 +1,25 @@
-import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Post,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { Expose, plainToInstance, Type } from 'class-transformer';
-import { ApiOperation, ApiProperty, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiProperty,
+  ApiTags,
+} from '@nestjs/swagger';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
 import { ApiPaginatedResponse } from '../common/decorators/api-paginated-response.decorator';
 import { PaginatedResult } from '../common/interfaces/paginated-result.interface';
+import { UserRole } from '../users/entities/user.entity';
 import { CreateWalletDto } from './dto/create-wallet.dto';
 import { Wallet } from './entities/wallet.entity';
 import { WalletsService } from './wallets.service';
@@ -49,6 +66,9 @@ class WalletResponseItem {
 }
 
 @ApiTags('Wallets')
+@ApiBearerAuth()
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles(UserRole.ADMIN, UserRole.PARTNER)
 @Controller('wallets')
 export class WalletsController {
   constructor(private readonly walletsService: WalletsService) {}
